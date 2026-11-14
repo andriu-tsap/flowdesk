@@ -73,8 +73,7 @@ https://andriu-tsap.github.io/flowdesk/ — login **demo**, hasło **demo123**. 
 CI: lint, unit, kompilacja frontend/backend, migracje prawdziwego PostgreSQL, testy API (role, równoległe rezerwacje, rotacja i ponowne użycie refresh), Playwright desktop/mobile, mobilny Lighthouse.
 
 <!-- LIGHTHOUSE -->
-
-Lighthouse: oczekuje na pomiar CI.
+Pomiar mobilny Lighthouse (CI, build produkcyjny): performance: **93** · accessibility: **100** · best-practices: **100** · seo: **100**. Raport: [reports/lighthouse.report.html](reports/lighthouse.report.html).
 <!-- /LIGHTHOUSE -->
 
 ## Zrzuty
