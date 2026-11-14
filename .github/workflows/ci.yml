@@ -1,0 +1,73 @@
+name: Quality and Pages
+on: [push, pull_request, workflow_dispatch]
+permissions: { contents: write, pages: write, id-token: write }
+concurrency:
+  group: flowdesk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: flowdesk
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/flowdesk
+      ADMIN_EMAIL: admin@example.com
+      FRONTEND_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:api
+      - run: |
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+      - run: npm run db:migrate && npm run db:seed
+      - run: npm run start:api > /tmp/flowdesk-api.log 2>&1 &
+      - run: node tests/integration/api.mjs
+      - run: npm run build:web -- --base-href /flowdesk/
+      - run: npx playwright install --with-deps chromium
+      - run: BASE_PATH=/flowdesk node scripts/serve.mjs &
+      - run: npm run test:e2e
+        env:
+          E2E_URL: http://localhost:8080/flowdesk/
+      - run: |
+          mkdir -p reports
+          npx lighthouse http://localhost:8080/flowdesk/ --chrome-flags="--headless --no-sandbox" --output=html --output=json --output-path=./reports/lighthouse --only-categories=performance,accessibility,best-practices,seo --quiet
+          node scripts/audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-evidence
+          path: |
+            screenshots/
+            reports/
+            test-results/
+      - name: Save quality evidence
+        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add screenshots reports README.md
+          git diff --cached --quiet || git commit -m "docs: verified screenshots and Lighthouse [skip ci]"
+          git push
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist/web/browser }
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: quality
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
