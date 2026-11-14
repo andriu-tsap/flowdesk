@@ -14,7 +14,7 @@ jobs:
           POSTGRES_DB: flowdesk
           POSTGRES_HOST_AUTH_METHOD: trust
         ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 5s --health-retries 20
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
     env:
       DATABASE_URL: postgresql://postgres@localhost:5432/flowdesk
       ADMIN_EMAIL: admin@example.com
@@ -28,8 +28,12 @@ jobs:
       - run: npm test
       - run: npm run build:api
       - run: |
-          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          echo "ADMIN_PASSWORD=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+          jwt=$(openssl rand -hex 32)
+          password=$(openssl rand -hex 16)
+          echo "::add-mask::$jwt"
+          echo "::add-mask::$password"
+          echo "JWT_SECRET=$jwt" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=$password" >> "$GITHUB_ENV"
       - run: npm run db:migrate && npm run db:seed
       - run: npm run start:api > /tmp/flowdesk-api.log 2>&1 &
       - run: node tests/integration/api.mjs

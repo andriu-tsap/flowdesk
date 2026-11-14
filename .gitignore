@@ -1,9 +1,0 @@
-node_modules/
-dist/
-.angular/
-.env*
-!.env.example
-*.tsbuildinfo
-test-results/
-playwright-report/
-.sites-runtime/

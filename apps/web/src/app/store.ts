@@ -274,7 +274,7 @@ export class Store {
       20,
       45,
     );
-    doc.save('flowdesk-oferta-demo.pdf');
+    this.download(doc.output('blob'), 'flowdesk-oferta-demo.pdf');
   }
   private download(blob: Blob, name: string) {
     const url = URL.createObjectURL(blob);
